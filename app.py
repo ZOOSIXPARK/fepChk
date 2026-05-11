@@ -117,8 +117,8 @@ def convert_df_to_excel(df):
 
 # --- 메인 UI ---
 def main():
-    st.set_page_config(page_title="KB증권)대외계-RMS 분리 작업", layout="wide")
-    st.title("KB증권 대외계-RMS 분리 작업 작업 관련 웹페이지")
+    st.set_page_config(page_title="KB증권 대외계-RMS 분리 작업", layout="wide")
+    st.title("KB증권 대외계-RMS 분리 작업 관련 사이트")
     
     # 1. 안내 문구 최상단 배치
     st.info("💡 테스트 여부 확인 후 운영반영일정 수립 예정입니다.")
