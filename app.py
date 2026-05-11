@@ -117,8 +117,8 @@ def main():
     try:
         all_df = get_all_results() 
     except Exception as e:
-        st.error("DB 연결 오류가 발생했습니다. Secrets 설정을 확인하세요.")
-        st.stop()
+        st.error(f"DB 연결 오류가 발생했습니다. Secrets 설정을 확인하세요. (에러: {e})")
+        st.stop() # DB 연결 실패 시 여기서 멈추므로 아래 화면이 안 뜹니다.
     
     # --- 상단 KPI 대시보드 ---
     if mapping:
@@ -138,3 +138,76 @@ def main():
     # --- 본문 입력 및 조회 ---
     if mapping:
         col1, col2 = st.columns([1, 1.2])
+        
+        with col1:
+            st.subheader("📝 점검 내역 입력 (조회/수정)")
+            selected_rms = st.selectbox("점검 대상 RMS를 선택하세요:", list(mapping.keys()))
+            institutions = mapping[selected_rms]
+            
+            existing_data = get_results_by_rms(selected_rms)
+            
+            # Session State 초기화 및 동기화
+            for inst in institutions:
+                chk_key, date_key = f"chk_{selected_rms}_{inst}", f"date_{selected_rms}_{inst}"
+                if chk_key not in st.session_state:
+                    st.session_state[chk_key] = bool(existing_data.get(inst, {}).get('is_tested', False))
+                if date_key not in st.session_state:
+                    saved_date = existing_data.get(inst, {}).get('date', "")
+                    st.session_state[date_key] = datetime.strptime(saved_date, "%Y-%m-%d").date() if saved_date else None
+
+            # 일괄 지정 안내 메시지
+            st.markdown("> **[Info] 테스트 일정 수립 후 운영반영일정 수립 예정**")
+            bulk_key = f"bulk_state_{selected_rms}"
+            if bulk_key not in st.session_state: st.session_state[bulk_key] = None
+            
+            # 일괄 지정 달력 비활성화
+            ui_bulk = st.date_input("💡 운영 반영일정 일괄 지정", value=None, key=f"ui_bulk_{selected_rms}", disabled=True)
+            if ui_bulk != st.session_state[bulk_key]:
+                st.session_state[bulk_key] = ui_bulk
+                if ui_bulk:
+                    for inst in institutions: st.session_state[f"date_{selected_rms}_{inst}"] = ui_bulk
+                st.rerun()
+
+            with st.form(key=f"form_{selected_rms}"):
+                for inst in institutions:
+                    # 대외기관명에 파란색 강조 및 폰트 크기 확대 적용
+                    st.markdown(f"<h4 style='color: #1976D2; margin-top: 10px; margin-bottom: 5px;'>🔹 {inst.strip()}</h4>", unsafe_allow_html=True)
+                    
+                    # 체크박스
+                    st.checkbox("개발통신 확인 및 테스트 점검 완료", key=f"chk_{selected_rms}_{inst}")
+                    
+                    # 체크박스와 날짜 선택 사이에 여백(엔터) 추가
+                    st.write("") 
+                    
+                    # 날짜 선택 (입력 비활성화 처리)
+                    st.date_input("운영 반영일정", key=f"date_{selected_rms}_{inst}", disabled=True)
+                    
+                    # 항목간 시각적 구분을 위한 연한 회색 구분선 추가
+                    st.markdown("<hr style='margin-top: 15px; margin-bottom: 10px; border-top: 1px solid #e0e0e0;'>", unsafe_allow_html=True)
+                
+                # 결과저장 버튼 (파란색으로 강조)
+                if st.form_submit_button("결과저장", type="primary", use_container_width=True):
+                    res = {inst: {"tested": st.session_state[f"chk_{selected_rms}_{inst}"], 
+                                  "prod_reflection_date": st.session_state[f"date_{selected_rms}_{inst}"].strftime("%Y-%m-%d") if st.session_state[f"date_{selected_rms}_{inst}"] else ""} 
+                           for inst in institutions}
+                    save_data(selected_rms, res)
+                    st.success("저장 완료!")
+                    st.rerun()
+
+        with col2:
+            st.subheader("📋 실시간 점검 현황")
+            if not all_df.empty:
+                disp_df = all_df.copy()
+                disp_df['is_tested'] = disp_df['is_tested'].map({1: "✅ 완료", 0: "⏳ 미완료"})
+                disp_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "업데이트 시간"]
+                st.dataframe(disp_df, use_container_width=True, hide_index=True)
+
+    # --- 하단 다운로드 ---
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+    if not all_df.empty:
+        st.download_button("📊 전체 진행내역 엑셀 다운로드", data=convert_df_to_excel(all_df), 
+                           file_name=f"RMS_분리작업_{datetime.now().strftime('%m%d_%H%M')}.xlsx", 
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+
+if __name__ == "__main__":
+    main()
