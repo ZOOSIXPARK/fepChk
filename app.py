@@ -69,7 +69,6 @@ def save_data(rms_dept, manager_name, results):
 def get_all_results():
     """Supabase DB 결과 전체 조회 (작성자 컬럼 포함 명시적 조회)"""
     conn = st.connection("supabase", type="sql")
-    # manager 컬럼을 명시적으로 가져오도록 쿼리 수정
     return conn.query("SELECT rms_dept, external_inst, is_tested, prod_reflection_date, manager, updated_at FROM test_results", ttl=0)
 
 def get_results_by_rms(rms_dept):
@@ -178,8 +177,7 @@ def main():
                     for inst in institutions: st.session_state[f"date_{selected_rms}_{inst}"] = ui_bulk
                 st.rerun()
 
-            # 2. 작성자 입력 필드 (일괄 달력 바로 아래 배치)
-            # 기존 저장된 데이터가 있다면 첫 번째 기관의 작성자명을 기본값으로 불러옵니다.
+            # 2. 작성자 입력 필드
             default_manager = ""
             if institutions and existing_data.get(institutions[0], {}).get('manager'):
                 default_manager = existing_data[institutions[0]]['manager']
@@ -201,16 +199,19 @@ def main():
                     
                     st.markdown("<hr style='margin-top: 15px; margin-bottom: 10px; border-top: 1px solid #e0e0e0;'>", unsafe_allow_html=True)
                 
-                # 저장 버튼
+                # 저장 버튼 및 필수값 검증 로직
                 if st.form_submit_button("결과저장", type="primary", use_container_width=True):
-                    res = {inst: {"tested": st.session_state[f"chk_{selected_rms}_{inst}"], 
-                                  "prod_reflection_date": st.session_state[f"date_{selected_rms}_{inst}"].strftime("%Y-%m-%d") if st.session_state[f"date_{selected_rms}_{inst}"] else ""} 
-                           for inst in institutions}
-                    
-                    # 저장 함수에 manager_name 전달
-                    save_data(selected_rms, manager_name, res)
-                    st.success("저장 완료!")
-                    st.rerun()
+                    if not manager_name.strip():
+                        st.error("🚨 필수 입력 항목 누락: '작성자'를 반드시 입력해주세요.")
+                    else:
+                        res = {inst: {"tested": st.session_state[f"chk_{selected_rms}_{inst}"], 
+                                      "prod_reflection_date": st.session_state[f"date_{selected_rms}_{inst}"].strftime("%Y-%m-%d") if st.session_state[f"date_{selected_rms}_{inst}"] else ""} 
+                               for inst in institutions}
+                        
+                        # 저장 함수에 manager_name 전달
+                        save_data(selected_rms, manager_name, res)
+                        st.success("저장 완료!")
+                        st.rerun()
 
         with col2:
             st.subheader("📋 점검 내역")
