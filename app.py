@@ -155,11 +155,13 @@ def main():
                     saved_date = existing_data.get(inst, {}).get('date', "")
                     st.session_state[date_key] = datetime.strptime(saved_date, "%Y-%m-%d").date() if saved_date else None
 
-            # 일괄 지정 로직
+            # 일괄 지정 로직 및 안내 메시지
+            st.markdown("> **[Info] 테스트 일정 수립 후 운영반영일정 수립 예정**")
             bulk_key = f"bulk_state_{selected_rms}"
             if bulk_key not in st.session_state: st.session_state[bulk_key] = None
             
-            ui_bulk = st.date_input("💡 운영 반영일정 일괄 지정", value=None, key=f"ui_bulk_{selected_rms}")
+            # 일괄 지정 달력 비활성화
+            ui_bulk = st.date_input("💡 운영 반영일정 일괄 지정", value=None, key=f"ui_bulk_{selected_rms}", disabled=True)
             if ui_bulk != st.session_state[bulk_key]:
                 st.session_state[bulk_key] = ui_bulk
                 if ui_bulk:
@@ -168,12 +170,20 @@ def main():
 
             with st.form(key=f"form_{selected_rms}"):
                 for inst in institutions:
-                    st.markdown(f"**{inst}**")
+                    # 마크다운 볼드 깨짐 방지를 위한 공백 제거
+                    st.markdown(f"**{inst.strip()}**")
                     c1, c2 = st.columns([1, 3])
-                    with c1: st.checkbox("테스트 완료", key=f"chk_{selected_rms}_{inst}")
-                    with c2: st.date_input("운영 반영일정", key=f"date_{selected_rms}_{inst}")
+                    
+                    # 체크박스 텍스트 변경
+                    with c1: 
+                        st.checkbox("개발통신 확인 및 테스트 점검 완료", key=f"chk_{selected_rms}_{inst}")
+                        
+                    # 운영 반영일정 비활성화
+                    with c2: 
+                        st.date_input("운영 반영일정", key=f"date_{selected_rms}_{inst}", disabled=True)
                 
-                if st.form_submit_button("결과저장", use_container_width=True):
+                # 결과저장 버튼 색상 추가 (type="primary")
+                if st.form_submit_button("결과저장", type="primary", use_container_width=True):
                     res = {inst: {"tested": st.session_state[f"chk_{selected_rms}_{inst}"], 
                                   "prod_reflection_date": st.session_state[f"date_{selected_rms}_{inst}"].strftime("%Y-%m-%d") if st.session_state[f"date_{selected_rms}_{inst}"] else ""} 
                            for inst in institutions}
