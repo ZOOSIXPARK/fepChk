@@ -72,7 +72,7 @@ def get_all_results():
     return conn.query("SELECT rms_dept, external_inst, is_tested, prod_reflection_date, manager, updated_at FROM test_results", ttl=0)
 
 def get_results_by_rms(rms_dept):
-    """특정 RMS 부서의 기존 저장 내역 조회 (작성자 포함)"""
+    """특정 RMS 업체의 기존 저장 내역 조회 (작성자 포함)"""
     conn = st.connection("supabase", type="sql")
     sql = text("SELECT external_inst, is_tested, prod_reflection_date, manager FROM test_results WHERE rms_dept = :rms")
     
@@ -140,7 +140,7 @@ def main():
         test_prog = (comp_test / total_target * 100) if total_target > 0 else 0
 
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("전체 대상 RMS 부서", f"{total_rms} 개")
+        k1.metric("전체 대상 RMS 업체", f"{total_rms} 개")
         k2.metric("운영반영 확인 RMS", f"{part_rms} 개", f"진행률 {rms_prog:.1f}%")
         k3.metric("전체 대외기관 테스트 대상", f"{total_target} 건")
         k4.metric("테스트 완료 건수", f"{comp_test} 건", f"진척률 {test_prog:.1f}%")
