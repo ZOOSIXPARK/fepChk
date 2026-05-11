@@ -140,8 +140,8 @@ def main():
         col1, col2 = st.columns([1, 1.2])
         
         with col1:
-            st.subheader("📝 점검 내역 입력 (조회/수정)")
-            selected_rms = st.selectbox("점검 대상 RMS를 선택하세요:", list(mapping.keys()))
+            st.subheader("📝 테스트 점검 및 운영반영 일정 입력")
+            selected_rms = st.selectbox("점검 대상 RMS 업체명 선택:", list(mapping.keys()))
             institutions = mapping[selected_rms]
             
             existing_data = get_results_by_rms(selected_rms)
