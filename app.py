@@ -156,7 +156,7 @@ def main():
                     st.session_state[date_key] = datetime.strptime(saved_date, "%Y-%m-%d").date() if saved_date else None
 
             # 가이드 메시지 (요청하신 문구로 변경 및 시각적 강조)
-            st.info("💡 테스트 여부 확인 후 운영반영일정 수립")
+            st.info("💡 테스트 여부 확인 후 운영반영일정 수립 예정입니다.")
             
             bulk_key = f"bulk_state_{selected_rms}"
             if bulk_key not in st.session_state: st.session_state[bulk_key] = None
