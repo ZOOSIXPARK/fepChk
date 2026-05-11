@@ -155,7 +155,7 @@ def main():
                     saved_date = existing_data.get(inst, {}).get('date', "")
                     st.session_state[date_key] = datetime.strptime(saved_date, "%Y-%m-%d").date() if saved_date else None
 
-            # 일괄 지정 로직 및 안내 메시지
+            # 일괄 지정 안내 메시지
             st.markdown("> **[Info] 테스트 일정 수립 후 운영반영일정 수립 예정**")
             bulk_key = f"bulk_state_{selected_rms}"
             if bulk_key not in st.session_state: st.session_state[bulk_key] = None
@@ -170,19 +170,21 @@ def main():
 
             with st.form(key=f"form_{selected_rms}"):
                 for inst in institutions:
-                    # 마크다운 볼드 깨짐 방지를 위한 공백 제거
-                    st.markdown(f"**{inst.strip()}**")
-                    c1, c2 = st.columns([1, 3])
+                    # 대외기관명에 색상과 스타일을 입혀 강조
+                    st.markdown(f"<h4 style='color: #1976D2; margin-top: 10px; margin-bottom: 5px;'>🔹 {inst.strip()}</h4>", unsafe_allow_html=True)
                     
-                    # 체크박스 텍스트 변경
-                    with c1: 
-                        st.checkbox("개발통신 확인 및 테스트 점검 완료", key=f"chk_{selected_rms}_{inst}")
-                        
-                    # 운영 반영일정 비활성화
-                    with c2: 
-                        st.date_input("운영 반영일정", key=f"date_{selected_rms}_{inst}", disabled=True)
+                    # 체크박스와 Date 선택을 세로로 분리 (컬럼 제거)
+                    st.checkbox("개발통신 확인 및 테스트 점검 완료", key=f"chk_{selected_rms}_{inst}")
+                    
+                    # 체크박스와 날짜 선택 사이에 한 칸(엔터) 띄우기
+                    st.write("") 
+                    
+                    st.date_input("운영 반영일정", key=f"date_{selected_rms}_{inst}", disabled=True)
+                    
+                    # 각 기관 블록을 명확히 구분하기 위한 얇은 여백 선 추가
+                    st.markdown("<hr style='margin-top: 15px; margin-bottom: 10px; border-top: 1px solid #e0e0e0;'>", unsafe_allow_html=True)
                 
-                # 결과저장 버튼 색상 추가 (type="primary")
+                # 결과저장 버튼
                 if st.form_submit_button("결과저장", type="primary", use_container_width=True):
                     res = {inst: {"tested": st.session_state[f"chk_{selected_rms}_{inst}"], 
                                   "prod_reflection_date": st.session_state[f"date_{selected_rms}_{inst}"].strftime("%Y-%m-%d") if st.session_state[f"date_{selected_rms}_{inst}"] else ""} 
@@ -202,9 +204,4 @@ def main():
     # --- 하단 다운로드 ---
     st.markdown("<br><hr>", unsafe_allow_html=True)
     if not all_df.empty:
-        st.download_button("📊 전체 진행내역 엑셀 다운로드", data=convert_df_to_excel(all_df), 
-                           file_name=f"RMS_분리작업_{datetime.now().strftime('%m%d_%H%M')}.xlsx", 
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
-
-if __name__ == "__main__":
-    main()
+        st.download_button("📊 전체 진행내역 엑셀 다운로드", data=convert_df_to_excel(all_
