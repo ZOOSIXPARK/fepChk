@@ -197,11 +197,10 @@ def main():
 
         with col2:
             st.subheader("📋 점검 내역")
-            if not all_df.empty:
-                disp_df = all_df.copy()
-                disp_df['is_tested'] = disp_df['is_tested'].map({1: "✅ 완료", 0: "⏳ 미완료"})
-                disp_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "업데이트 시간"]
-                st.dataframe(disp_df, use_container_width=True, hide_index=True)
+            disp_df = all_df.copy()
+            disp_df['is_tested'] = disp_df['is_tested'].map({1: "✅ 완료", 0: "⏳ 미완료"})
+            disp_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "업데이트 시간"]
+            st.dataframe(disp_df, use_container_width=True, hide_index=True)
 
     # --- 하단 다운로드 ---
     st.markdown("<br><hr>", unsafe_allow_html=True)
