@@ -196,7 +196,7 @@ def main():
                     st.rerun()
 
         with col2:
-            st.subheader("📋 실시간 점검 현황")
+            st.subheader("📋 점검 내역")
             if not all_df.empty:
                 disp_df = all_df.copy()
                 disp_df['is_tested'] = disp_df['is_tested'].map({1: "✅ 완료", 0: "⏳ 미완료"})
