@@ -118,7 +118,7 @@ def main():
         all_df = get_all_results() 
     except Exception as e:
         st.error(f"DB 연결 오류가 발생했습니다. Secrets 설정을 확인하세요. (에러: {e})")
-        st.stop() # DB 연결 실패 시 여기서 멈추므로 아래 화면이 안 뜹니다.
+        st.stop()
     
     # --- 상단 KPI 대시보드 ---
     if mapping:
@@ -155,8 +155,9 @@ def main():
                     saved_date = existing_data.get(inst, {}).get('date', "")
                     st.session_state[date_key] = datetime.strptime(saved_date, "%Y-%m-%d").date() if saved_date else None
 
-            # 일괄 지정 안내 메시지
-            st.markdown("> **[Info] 테스트 일정 수립 후 운영반영일정 수립 예정**")
+            # 가이드 메시지 (요청하신 문구로 변경 및 시각적 강조)
+            st.info("💡 테스트 여부 확인 후 운영반영일정 수립")
+            
             bulk_key = f"bulk_state_{selected_rms}"
             if bulk_key not in st.session_state: st.session_state[bulk_key] = None
             
@@ -170,22 +171,22 @@ def main():
 
             with st.form(key=f"form_{selected_rms}"):
                 for inst in institutions:
-                    # 대외기관명에 파란색 강조 및 폰트 크기 확대 적용
+                    # 대외기관명 강조
                     st.markdown(f"<h4 style='color: #1976D2; margin-top: 10px; margin-bottom: 5px;'>🔹 {inst.strip()}</h4>", unsafe_allow_html=True)
                     
                     # 체크박스
                     st.checkbox("개발통신 확인 및 테스트 점검 완료", key=f"chk_{selected_rms}_{inst}")
                     
-                    # 체크박스와 날짜 선택 사이에 여백(엔터) 추가
+                    # 여백 추가
                     st.write("") 
                     
-                    # 날짜 선택 (입력 비활성화 처리)
+                    # 날짜 선택 비활성화
                     st.date_input("운영 반영일정", key=f"date_{selected_rms}_{inst}", disabled=True)
                     
-                    # 항목간 시각적 구분을 위한 연한 회색 구분선 추가
+                    # 구분선
                     st.markdown("<hr style='margin-top: 15px; margin-bottom: 10px; border-top: 1px solid #e0e0e0;'>", unsafe_allow_html=True)
                 
-                # 결과저장 버튼 (파란색으로 강조)
+                # 저장 버튼
                 if st.form_submit_button("결과저장", type="primary", use_container_width=True):
                     res = {inst: {"tested": st.session_state[f"chk_{selected_rms}_{inst}"], 
                                   "prod_reflection_date": st.session_state[f"date_{selected_rms}_{inst}"].strftime("%Y-%m-%d") if st.session_state[f"date_{selected_rms}_{inst}"] else ""} 
