@@ -141,7 +141,7 @@ def main():
 
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("전체 대상 RMS 업체", f"{total_rms} 개")
-        k2.metric("운영반영 확인 RMS", f"{part_rms} 개", f"진행률 {rms_prog:.1f}%")
+        k2.metric("테스트 확인 RMS", f"{part_rms} 개", f"진행률 {rms_prog:.1f}%")
         k3.metric("전체 대외기관 테스트 대상", f"{total_target} 건")
         k4.metric("테스트 완료 건수", f"{comp_test} 건", f"진척률 {test_prog:.1f}%")
         st.markdown("---")
