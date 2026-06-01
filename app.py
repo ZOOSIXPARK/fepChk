@@ -117,7 +117,7 @@ def main():
     st.set_page_config(page_title="KB증권 대외계-RMS 분리 작업 대시보드", layout="wide")
     st.title("KB증권 대외계-RMS 분리 작업 대시보드")
     
-    st.info("💡 테스트 여부 확인 후 운영반영일정 수립 예정입니다.")
+    st.info("💡 테스트가 완료되신 분들은 운영반영일정 수립 부탁드립니다.")
     
     mapping = load_fep_data()
     if not mapping:
