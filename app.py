@@ -156,7 +156,7 @@ def main():
             for inst in institutions:
                 st.markdown(f"**🔹 {inst.strip()}**")
                 st.checkbox("개발통신 확인 및 테스트 점검 완료", key=f"chk_{selected_rms}_{inst}", value=bool(existing_data.get(inst, {}).get('is_tested', False)))
-                st.date_input("운영 반영일정", key=f"date_{selected_rms}_{inst}", disabled=True)
+                st.date_input("운영 반영일정", key=f"date_{selected_rms}_{inst}", disabled=False)
             
             if st.form_submit_button("결과저장", type="primary", use_container_width=True):
                 if not manager_name.strip():
