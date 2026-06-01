@@ -231,7 +231,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-운영반영일정 활성화
