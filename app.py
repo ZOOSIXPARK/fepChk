@@ -9,6 +9,7 @@ from sqlalchemy import text
 CSV_FILE = "fep.csv"
 
 def load_fep_data():
+    """fep.csv 파일을 읽어서 RMS 기준 딕셔너리로 변환"""
     if os.path.exists(CSV_FILE):
         try:
             try:
@@ -230,3 +231,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+운영반영일정 활성화
