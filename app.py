@@ -60,12 +60,12 @@ def save_data(rms_dept, manager_name, results):
             ''')
             
             s.execute(sql, {
-                "rms": rms_dept, 
-                "inst": inst, 
-                "tested": 1 if data['tested'] else 0, 
-                "date": data['prod_reflection_date'], 
-                "manager": manager_name,
-                "updated": now
+                "RMS업체명": rms_dept, 
+                "대외기관명": inst, 
+                "TEST유무": 1 if data['tested'] else 0, 
+                "운영반영일자": data['prod_reflection_date'], 
+                "RMS담당자": manager_name,
+                "작성일자": now
             })
         s.commit()
 
