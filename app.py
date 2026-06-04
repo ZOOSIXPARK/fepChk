@@ -69,8 +69,8 @@ def get_results_by_rms(rms_dept):
             return {row[0]: {'is_tested': row[1], 'date': row[2], 'manager': ''} for row in rows}
 
 def main():
-    st.set_page_config(page_title="KB증권)대외계-RMS 분리 작업", layout="wide")
-    st.title("KB증권 대외계-RMS 분리 작업 작업 관련 웹페이지")
+    st.set_page_config(page_title="KB증권 대외계-RMS 분리 작업 대시보드", layout="wide")
+    st.title("KB증권 대외계-RMS 분리 작업 대시보드")
     
     mapping = load_fep_data()
     all_df = get_all_results() 
