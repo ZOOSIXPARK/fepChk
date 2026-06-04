@@ -68,26 +68,6 @@ def get_results_by_rms(rms_dept):
             rows = result.fetchall()
             return {row[0]: {'is_tested': row[1], 'date': row[2], 'manager': ''} for row in rows}
 
-def get_kpi_metrics(mapping):
-    total_rms_count = len(mapping) if mapping else 0
-    total_target_count = sum(len(insts) for insts in mapping.values()) if mapping else 0
-    conn = st.connection("supabase", type="sql")
-    with conn.session as s:
-        row_rms = s.execute(text("SELECT COUNT(DISTINCT rms_dept) FROM test_results")).fetchone()
-        part_rms = row_rms[0] if row_rms else 0
-        row_test = s.execute(text("SELECT COUNT(*) FROM test_results WHERE is_tested = 1")).fetchone()
-        comp_test = row_test[0] if row_test else 0
-    return total_rms_count, part_rms, total_target_count, comp_test
-
-def convert_df_to_excel(df):
-    output = io.BytesIO()
-    export_df = df.copy()
-    export_df['is_tested'] = export_df['is_tested'].map({1: "완료", 0: "미완료"})
-    export_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "작성자", "최종갱신시간"]
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        export_df.to_excel(writer, index=False, sheet_name='전체점검내역')
-    return output.getvalue()
-
 def main():
     st.set_page_config(page_title="KB증권)대외계-RMS 분리 작업", layout="wide")
     st.title("KB증권 대외계-RMS 분리 작업 작업 관련 웹페이지")
@@ -116,7 +96,7 @@ def main():
                 for inst in institutions:
                     st.session_state[f"date_{selected_rms}_{inst}"] = ui_bulk
 
-            manager_name = st.text_input("👤 작성자", value=existing_data.get(institutions[0], {}).get('manager', "") if institutions else "", key=f"manager_{selected_rms}")
+            manager_name = st.text_input("👤 작성자", value=existing_data.get(institutions[0], {}).get('manager', "") if institutions and existing_data else "", key=f"manager_{selected_rms}")
 
             with st.form(key=f"form_{selected_rms}"):
                 for inst in institutions:
@@ -127,7 +107,7 @@ def main():
                 
                 if st.form_submit_button("결과저장", type="primary", use_container_width=True):
                     res = {inst: {"tested": st.session_state[f"chk_{selected_rms}_{inst}"], 
-                                  "prod_reflection_date": st.session_state[f"date_{selected_rms}_{inst}"].strftime("%Y-%m-%d")} 
+                                  "prod_reflection_date": st.session_state[f"date_{selected_rms}_{inst}"].strftime("%Y-%m-%d") if st.session_state[f"date_{selected_rms}_{inst}"] else ""} 
                            for inst in institutions}
                     save_data(selected_rms, manager_name, res)
                     st.success("저장 완료!")
@@ -135,10 +115,15 @@ def main():
 
         with col2:
             st.subheader("📋 점검 내역")
-            disp_df = all_df.copy()
-            disp_df['is_tested'] = disp_df['is_tested'].map({1: "✅ 완료", 0: "⏳ 미완료"})
-            disp_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "작성자", "업데이트 시간"]
-            st.dataframe(disp_df, use_container_width=True, hide_index=True)
+            # 선택된 RMS 업체명으로 필터링
+            disp_df = all_df[all_df['rms_dept'] == selected_rms].copy()
+            
+            if not disp_df.empty:
+                disp_df['is_tested'] = disp_df['is_tested'].map({1: "✅ 완료", 0: "⏳ 미완료"})
+                disp_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "작성자", "업데이트 시간"]
+                st.dataframe(disp_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("해당 RMS 부서에 대한 점검 내역이 없습니다.")
 
 if __name__ == "__main__":
     main()
