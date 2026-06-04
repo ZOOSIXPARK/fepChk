@@ -1,39 +1,44 @@
 import streamlit as st
 import pandas as pd
 import os
-import io
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
 
 # --- 설정 ---
 CSV_FILE = "fep.csv"
 
+def get_kst_now():
+    """한국 시간(KST)을 반환합니다."""
+    return datetime.now(timezone(timedelta(hours=9)))
+
 def load_fep_data():
-    if os.path.exists(CSV_FILE):
-        try:
-            try:
-                df = pd.read_csv(CSV_FILE, encoding='utf-8')
-            except:
-                df = pd.read_csv(CSV_FILE, encoding='cp949')
-            if '내부업체' in df.columns:
-                df = df.rename(columns={'내부업체': 'RMS'})
-            if 'RMS' not in df.columns:
-                st.error("CSV 파일에 'RMS' 또는 '내부업체' 컬럼이 필요합니다.")
-                return None
-            df = df.dropna(subset=['RMS', '대외기관'])
-            df['RMS'] = df['RMS'].astype(str)
-            df['대외기관'] = df['대외기관'].astype(str)
-            return df.groupby('RMS')['대외기관'].apply(list).to_dict()
-        except Exception as e:
-            st.error(f"CSV 로드 오류: {e}")
-            return None
-    else:
+    if not os.path.exists(CSV_FILE):
         st.warning(f"'{CSV_FILE}' 파일이 없습니다.")
+        return None
+    try:
+        try:
+            df = pd.read_csv(CSV_FILE, encoding='utf-8')
+        except:
+            df = pd.read_csv(CSV_FILE, encoding='cp949')
+        
+        if '내부업체' in df.columns:
+            df = df.rename(columns={'내부업체': 'RMS'})
+        if 'RMS' not in df.columns or '대외기관' not in df.columns:
+            st.error("CSV 파일에 'RMS'와 '대외기관' 컬럼이 필요합니다.")
+            return None
+            
+        df = df.dropna(subset=['RMS', '대외기관'])
+        df['RMS'] = df['RMS'].astype(str)
+        df['대외기관'] = df['대외기관'].astype(str)
+        return df.groupby('RMS')['대외기관'].apply(list).to_dict()
+    except Exception as e:
+        st.error(f"CSV 로드 오류: {e}")
         return None
 
 def save_data(rms_dept, manager_name, results):
     conn = st.connection("supabase", type="sql")
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = get_kst_now().strftime("%Y-%m-%d %H:%M:%S")
+    
     with conn.session as s:
         for inst, data in results.items():
             sql = text('''
@@ -47,8 +52,16 @@ def save_data(rms_dept, manager_name, results):
                     manager = EXCLUDED.manager,
                     updated_at = EXCLUDED.updated_at
             ''')
-            s.execute(sql, {"rms": rms_dept, "inst": inst, "tested": 1 if data['tested'] else 0, "date": data['prod_reflection_date'], "manager": manager_name, "updated": now})
+            s.execute(sql, {
+                "rms": rms_dept, 
+                "inst": inst, 
+                "tested": 1 if data['tested'] else 0, 
+                "date": data['prod_reflection_date'], 
+                "manager": manager_name, 
+                "updated": now
+            })
         s.commit()
+    st.cache_data.clear() # 데이터 갱신을 위해 캐시 초기화
 
 def get_all_results():
     conn = st.connection("supabase", type="sql")
@@ -58,72 +71,60 @@ def get_results_by_rms(rms_dept):
     conn = st.connection("supabase", type="sql")
     sql = text("SELECT external_inst, is_tested, prod_reflection_date, manager FROM test_results WHERE rms_dept = :rms")
     with conn.session as s:
-        try:
-            result = s.execute(sql, {"rms": rms_dept})
-            rows = result.fetchall()
-            return {row[0]: {'is_tested': row[1], 'date': row[2], 'manager': row[3]} for row in rows}
-        except:
-            sql_fallback = text("SELECT external_inst, is_tested, prod_reflection_date FROM test_results WHERE rms_dept = :rms")
-            result = s.execute(sql_fallback, {"rms": rms_dept})
-            rows = result.fetchall()
-            return {row[0]: {'is_tested': row[1], 'date': row[2], 'manager': ''} for row in rows}
+        result = s.execute(sql, {"rms": rms_dept})
+        return {row[0]: {'is_tested': row[1], 'date': row[2], 'manager': row[3]} for row in result.fetchall()}
 
 def main():
     st.set_page_config(page_title="KB증권 대외계-RMS 분리 작업 대시보드", layout="wide")
     st.title("KB증권 대외계-RMS 분리 작업 대시보드")
     
     mapping = load_fep_data()
+    if not mapping: return
+    
     all_df = get_all_results() 
     
-    if mapping:
-        col1, col2 = st.columns([1, 1.2])
-        with col1:
-            st.subheader("📝 테스트 점검 및 운영반영 일정 입력")
-            selected_rms = st.selectbox("점검 대상 RMS 업체명 선택:", list(mapping.keys()))
-            institutions = mapping[selected_rms]
-            existing_data = get_results_by_rms(selected_rms)
-            
+    col1, col2 = st.columns([1, 1.2])
+    with col1:
+        st.subheader("📝 테스트 점검 및 운영반영 일정 입력")
+        selected_rms = st.selectbox("점검 대상 RMS 업체명 선택:", list(mapping.keys()))
+        institutions = mapping[selected_rms]
+        existing_data = get_results_by_rms(selected_rms)
+        
+        # 일괄 반영 UI
+        ui_bulk = st.date_input("💡 운영 반영일정 일괄 지정 (선택 시 하단 적용)", value=None)
+        
+        # 작성자 정보
+        manager_name = st.text_input("👤 작성자", value=list(existing_data.values())[0]['manager'] if existing_data else "")
+
+        with st.form(key=f"form_{selected_rms}"):
+            res_dict = {}
             for inst in institutions:
-                chk_key, date_key = f"chk_{selected_rms}_{inst}", f"date_{selected_rms}_{inst}"
-                if chk_key not in st.session_state:
-                    st.session_state[chk_key] = bool(existing_data.get(inst, {}).get('is_tested', False))
-                if date_key not in st.session_state:
-                    saved_date = existing_data.get(inst, {}).get('date', "")
-                    st.session_state[date_key] = datetime.strptime(saved_date, "%Y-%m-%d").date() if saved_date else None
-
-            ui_bulk = st.date_input("💡 운영 반영일정 일괄 지정", value=None)
-            if ui_bulk:
-                for inst in institutions:
-                    st.session_state[f"date_{selected_rms}_{inst}"] = ui_bulk
-
-            manager_name = st.text_input("👤 작성자", value=existing_data.get(institutions[0], {}).get('manager', "") if institutions and existing_data else "", key=f"manager_{selected_rms}")
-
-            with st.form(key=f"form_{selected_rms}"):
-                for inst in institutions:
-                    st.markdown(f"#### 🔹 {inst.strip()}")
-                    st.checkbox("개발통신 확인 및 테스트 점검 완료", key=f"chk_{selected_rms}_{inst}")
-                    st.date_input("운영 반영일정", key=f"date_{selected_rms}_{inst}")
-                    st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown(f"#### 🔹 {inst.strip()}")
+                data = existing_data.get(inst, {})
                 
-                if st.form_submit_button("결과저장", type="primary", use_container_width=True):
-                    res = {inst: {"tested": st.session_state[f"chk_{selected_rms}_{inst}"], 
-                                  "prod_reflection_date": st.session_state[f"date_{selected_rms}_{inst}"].strftime("%Y-%m-%d") if st.session_state[f"date_{selected_rms}_{inst}"] else ""} 
-                           for inst in institutions}
-                    save_data(selected_rms, manager_name, res)
-                    st.success("저장 완료!")
-                    st.rerun()
-
-        with col2:
-            st.subheader("📋 점검 내역")
-            # 선택된 RMS 업체명으로 필터링
-            disp_df = all_df[all_df['rms_dept'] == selected_rms].copy()
+                checked = st.checkbox("개발통신 확인 및 테스트 점검 완료", value=bool(data.get('is_tested')), key=f"chk_{inst}")
+                
+                # 일괄 날짜가 선택되었거나 기존 날짜가 있는 경우 설정
+                default_date = ui_bulk if ui_bulk else (pd.to_datetime(data.get('date')).date() if data.get('date') else None)
+                date_val = st.date_input("운영 반영일정", value=default_date, key=f"date_{inst}")
+                
+                res_dict[inst] = {"tested": checked, "prod_reflection_date": str(date_val) if date_val else ""}
+                st.markdown("<hr>", unsafe_allow_html=True)
             
-            if not disp_df.empty:
-                disp_df['is_tested'] = disp_df['is_tested'].map({1: "✅ 완료", 0: "⏳ 미완료"})
-                disp_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "작성자", "업데이트 시간"]
-                st.dataframe(disp_df, use_container_width=True, hide_index=True)
-            else:
-                st.info("해당 RMS 부서에 대한 점검 내역이 없습니다.")
+            if st.form_submit_button("결과저장", type="primary", use_container_width=True):
+                save_data(selected_rms, manager_name, res_dict)
+                st.success("저장 완료!")
+                st.rerun()
+
+    with col2:
+        st.subheader("📋 점검 내역")
+        disp_df = all_df[all_df['rms_dept'] == selected_rms].copy()
+        if not disp_df.empty:
+            disp_df['is_tested'] = disp_df['is_tested'].map({1: "✅ 완료", 0: "⏳ 미완료"})
+            disp_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "작성자", "업데이트 시간"]
+            st.dataframe(disp_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("해당 RMS 부서에 대한 점검 내역이 없습니다.")
 
 if __name__ == "__main__":
     main()
