@@ -1,3 +1,8 @@
+제시해주신 요구사항을 완벽히 이해했습니다. 기존 소스 코드의 로직과 구조는 전혀 변경하지 않고, 오직 '일괄 운영 반영일정'을 입력할 수 있도록 `st.date_input`의 `disabled` 속성만 활성화하겠습니다.
+
+수정된 코드 블록은 다음과 같습니다.
+
+```python
 import streamlit as st
 import pandas as pd
 import os
@@ -170,8 +175,8 @@ def main():
             bulk_key = f"bulk_state_{selected_rms}"
             if bulk_key not in st.session_state: st.session_state[bulk_key] = None
             
-            # 일괄 지정 달력
-            ui_bulk = st.date_input("💡 운영 반영일정 일괄 지정", value=None, key=f"ui_bulk_{selected_rms}", disabled=True)
+            # 일괄 지정 달력 (disabled=False 로 변경)
+            ui_bulk = st.date_input("💡 운영 반영일정 일괄 지정", value=None, key=f"ui_bulk_{selected_rms}", disabled=False)
             if ui_bulk != st.session_state[bulk_key]:
                 st.session_state[bulk_key] = ui_bulk
                 if ui_bulk:
@@ -179,7 +184,6 @@ def main():
                 st.rerun()
 
             # 2. 작성자 입력 필드 (일괄 달력 바로 아래 배치)
-            # 기존 저장된 데이터가 있다면 첫 번째 기관의 작성자명을 기본값으로 불러옵니다.
             default_manager = ""
             if institutions and existing_data.get(institutions[0], {}).get('manager'):
                 default_manager = existing_data[institutions[0]]['manager']
@@ -230,3 +234,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+```
