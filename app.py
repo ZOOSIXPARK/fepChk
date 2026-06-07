@@ -92,9 +92,9 @@ def main():
         institutions = mapping[selected_rms]
         existing_data = get_results_by_rms(selected_rms)
         
-        # 일괄 반영 UI
+        # 일괄 반영 UI (step=60 추가로 1분 단위 설정 지원)
         ui_bulk = st.date_input("💡 운영 반영일정 일괄 지정 (선택 시 하단 적용)", value=None)
-        ui_bulk_time = st.time_input("💡 운영 반영시간 일괄 지정 (선택 시 하단 적용)", value=None)
+        ui_bulk_time = st.time_input("💡 운영 반영시간 일괄 지정 (선택 시 하단 적용)", value=None, step=60)
         
         # 작성자 정보
         manager_name = st.text_input("👤 작성자", value=list(existing_data.values())[0]['manager'] if existing_data else "")
@@ -119,7 +119,8 @@ def main():
                     existing_time = None
                     
                 default_time = ui_bulk_time if ui_bulk_time else existing_time
-                time_val = st.time_input("운영 반영시간", value=default_time, key=f"time_{inst}")
+                # step=60 추가로 1분 단위 설정 지원
+                time_val = st.time_input("운영 반영시간", value=default_time, key=f"time_{inst}", step=60)
                 
                 res_dict[inst] = {
                     "tested": checked, 
