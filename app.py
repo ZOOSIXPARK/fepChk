@@ -43,12 +43,13 @@ def save_data(rms_dept, manager_name, results):
         for inst, data in results.items():
             sql = text('''
                 INSERT INTO test_results 
-                (rms_dept, external_inst, is_tested, prod_reflection_date, manager, updated_at)
-                VALUES (:rms, :inst, :tested, :date, :manager, :updated)
+                (rms_dept, external_inst, is_tested, prod_reflection_date, prod_days, manager, updated_at)
+                VALUES (:rms, :inst, :tested, :date, :prod_days, :manager, :updated)
                 ON CONFLICT (rms_dept, external_inst) 
                 DO UPDATE SET 
                     is_tested = EXCLUDED.is_tested,
                     prod_reflection_date = EXCLUDED.prod_reflection_date,
+                    prod_days = EXCLUDED.prod_days,
                     manager = EXCLUDED.manager,
                     updated_at = EXCLUDED.updated_at
             ''')
@@ -57,6 +58,7 @@ def save_data(rms_dept, manager_name, results):
                 "inst": inst, 
                 "tested": 1 if data['tested'] else 0, 
                 "date": data['prod_reflection_date'], 
+                "prod_days": data['prod_days'],
                 "manager": manager_name, 
                 "updated": now
             })
@@ -65,14 +67,14 @@ def save_data(rms_dept, manager_name, results):
 
 def get_all_results():
     conn = st.connection("supabase", type="sql")
-    return conn.query("SELECT rms_dept, external_inst, is_tested, prod_reflection_date, manager, updated_at FROM test_results", ttl=0)
+    return conn.query("SELECT rms_dept, external_inst, is_tested, prod_reflection_date, prod_days, manager, updated_at FROM test_results", ttl=0)
 
 def get_results_by_rms(rms_dept):
     conn = st.connection("supabase", type="sql")
-    sql = text("SELECT external_inst, is_tested, prod_reflection_date, manager FROM test_results WHERE rms_dept = :rms")
+    sql = text("SELECT external_inst, is_tested, prod_reflection_date, prod_days, manager FROM test_results WHERE rms_dept = :rms")
     with conn.session as s:
         result = s.execute(sql, {"rms": rms_dept})
-        return {row[0]: {'is_tested': row[1], 'date': row[2], 'manager': row[3]} for row in result.fetchall()}
+        return {row[0]: {'is_tested': row[1], 'date': row[2], 'prod_days': row[3], 'manager': row[4]} for row in result.fetchall()}
 
 def main():
     st.set_page_config(page_title="KB증권 대외계-RMS 분리 작업 대시보드", layout="wide")
@@ -92,6 +94,7 @@ def main():
         
         # 일괄 반영 UI
         ui_bulk = st.date_input("💡 운영 반영일정 일괄 지정 (선택 시 하단 적용)", value=None)
+        ui_bulk_time = st.time_input("💡 운영 반영시간 일괄 지정 (선택 시 하단 적용)", value=None)
         
         # 작성자 정보
         manager_name = st.text_input("👤 작성자", value=list(existing_data.values())[0]['manager'] if existing_data else "")
@@ -108,7 +111,21 @@ def main():
                 default_date = ui_bulk if ui_bulk else (pd.to_datetime(data.get('date')).date() if data.get('date') else None)
                 date_val = st.date_input("운영 반영일정", value=default_date, key=f"date_{inst}")
                 
-                res_dict[inst] = {"tested": checked, "prod_reflection_date": str(date_val) if date_val else ""}
+                # 일괄 시간이 선택되었거나 기존 시간이 있는 경우 설정
+                existing_time_str = data.get('prod_days')
+                try:
+                    existing_time = pd.to_datetime(existing_time_str).time() if existing_time_str else None
+                except:
+                    existing_time = None
+                    
+                default_time = ui_bulk_time if ui_bulk_time else existing_time
+                time_val = st.time_input("운영 반영시간", value=default_time, key=f"time_{inst}")
+                
+                res_dict[inst] = {
+                    "tested": checked, 
+                    "prod_reflection_date": str(date_val) if date_val else "",
+                    "prod_days": time_val.strftime("%H:%M") if time_val else ""
+                }
                 st.markdown("<hr>", unsafe_allow_html=True)
             
             if st.form_submit_button("결과저장", type="primary", use_container_width=True):
@@ -121,7 +138,8 @@ def main():
         disp_df = all_df[all_df['rms_dept'] == selected_rms].copy()
         if not disp_df.empty:
             disp_df['is_tested'] = disp_df['is_tested'].map({1: "✅ 완료", 0: "⏳ 미완료"})
-            disp_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "작성자", "업데이트 시간"]
+            # DataFrame에 추가된 컬럼 반영
+            disp_df.columns = ["RMS", "대외기관", "상태", "운영 반영일정", "운영 반영시간", "작성자", "업데이트 시간"]
             st.dataframe(disp_df, use_container_width=True, hide_index=True)
         else:
             st.info("해당 RMS 부서에 대한 점검 내역이 없습니다.")
