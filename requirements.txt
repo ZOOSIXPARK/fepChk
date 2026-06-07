@@ -4,3 +4,4 @@ sqlalchemy
 openpyxl
 chardet
 psycopg2-binary
+streamlit-datetime-picker
